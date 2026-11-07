@@ -6,7 +6,7 @@
 
 - 业务后端：`app/study/dashboard/`。
 - 业务前端：`web/src/lines/dashboard/`；复用现有 `.card`、`.btn`、`.badge` 等样式，没有改颜色、组件库或其他线。
-- 共用文件仅 `web/src/components/Shell.tsx`：保留主分支问答线的唯一会话初始化、引用工作台和计划刷新，再接入看板意图、摘要及完整工作台。问答与看板按发出顺序显示；看板之后继续问答不会把新回答插到旧摘要前面。最新请求会收起之前尚未接受的建议卡。
+- 共用接线文件 `web/src/components/Shell.tsx`：保留主分支问答线的唯一会话初始化、引用工作台和计划刷新，再接入看板意图、摘要及完整工作台。问答与看板按发出顺序显示；看板之后继续问答不会把新回答插到旧摘要前面。最新请求会收起之前尚未接受的建议卡。另保留A在此前合并中加入的5行旧卡片兼容CSS，本轮不改产品界面或样式。
 - 统一评测：`evals/`；提示词初稿：`app/prompts/dashboard.eval/v1.md`。看板数值由规则统计，不需要模型生成。
 - 上线准备：`deploy/xiaoman/` 和独立 CI。原 Dockerfile、底座安全规则、原金标、共用数据模型均保持原样。
 
@@ -180,11 +180,17 @@ python deploy/xiaoman/smoke_http.py --startup-timeout 60
 
 ```bash
 python deploy/xiaoman/study_schema.py > data/study-schema.sql
-python deploy/xiaoman/preflight.py data/release-evidence.json
+python deploy/xiaoman/preflight.py data/release-evidence.json --output data/release-preflight.json
 ```
 
 前者只输出 SQL；后者只读检查，不部署。SQL 采用 `app.user_id` 与 `WITH CHECK`，限制为 personal_agent_app，撤销 anon/authenticated 的表权限；不套用 Supabase Auth 的 auth.uid()。官方依据：[RLS 文档](https://supabase.com/docs/guides/database/postgres/row-level-security)。Supabase 近期 [CLI v3 改变默认目标及远端确认](https://supabase.com/changelog/supabase-cli-v3)，后续操作必须先核对本机版本，本交付没有调用 CLI 或改远端数据库。
 
-预检会拒绝空模型配置、缺少任一档主备模型、空凭据、无主机或带路径的CORS来源、非PostgreSQL连接及共用同一app/system登录角色。这些是静态校验；实际角色是否拥有表、是否可绕过RLS，仍需隔离数据库中的权限验收。
+预检会读取首页真正引用的JS/CSS文件，校验 `/study/` 构建路径、文件非空且不是HTML错误页，并检查小满PNG文件头。只有首页中出现路径字样、缺少任一资源或丢失图片，都不能通过。它不代替镜像构建及实际HTTP smoke。
 
-`release-evidence.json` 是 A 的逐项验收记录，只能对已经有实际证据的项目填 true。键名见 preflight.py。当前未完成项见 [验证记录](验证记录.md)，不能为了通过预检补勾。
+预检还会拒绝空模型配置、缺少任一档主备模型、空凭据、无主机或带路径的CORS来源、非PostgreSQL连接及共用同一app/system登录角色。这些是静态校验；实际角色是否拥有表、是否可绕过RLS，仍需隔离数据库中的权限验收。命令只读取当前进程的环境变量，不自动读取 `.env`。
+
+`release-evidence.json` 是 A 的逐项验收记录，可从 `deploy/xiaoman/release-evidence.example.json` 复制。模板全部为false，只有已经有实际证据的项目才能改true；缺项、字符串"true"、未完成的真实PDF、RLS或模型验收均不算通过。当前未完成项见 [验证记录](验证记录.md)，不能为了通过预检补勾。
+
+`--output` 可把同一份JSON报告保存给A审阅；`ready=false` 和非零退出码表示仍有待办，`blockers` 列出未完成项，`generated_at` 是UTC检查时间。配置和验收条件均通过才返回0。缺失/无效验收文件、保存报告失败会给结构化错误；报告不能覆盖输入的验收记录。报告不包含密钥、数据库连接字符串或原始配置。这一步不连接模型/数据库，不部署、不修改权限。
+
+本线可直接用仓库自带的公开样例和自动测试验收，不需要准备PDF。真实文字版PDF的上传、解析和八步联调留给资料线交付后验收，`public_pdf` 此前保持false。后续改动从最新main建独立分支，PR说明功能、复现步骤和接口变化，由A审阅合并后决定发布。

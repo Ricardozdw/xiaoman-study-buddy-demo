@@ -1,0 +1,18 @@
+{
+  "unit_tests": false,
+  "golden_rules": false,
+  "golden_hybrid": false,
+  "harness": false,
+  "web_tests": false,
+  "web_build": false,
+  "study_rls": false,
+  "public_pdf": false,
+  "demo_8_steps": false,
+  "manual_model_review": false,
+  "fixed_cases_exported": false,
+  "budget_approved": false,
+  "persistent_storage": false,
+  "live_evaluation": false,
+  "dependency_review": false,
+  "container_smoke": false
+}
